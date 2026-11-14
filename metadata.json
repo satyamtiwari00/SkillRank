@@ -1,0 +1,6 @@
+{
+  "name": "SkillRank",
+  "description": "Honest YouTube course evaluator and 3D ranked leaderboard powered by YouTube metadata, Gemini structured scoring, and Firebase.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,174 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: default deny everything
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidScore(val) {
+      return (val is int || val is float) && val >= 0.0 && val <= 10.0;
+    }
+
+    function isValidCourse(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
+             data.channel is string && data.channel.size() >= 1 && data.channel.size() <= 160 &&
+             data.url is string && data.url.size() >= 10 && data.url.size() <= 500 &&
+             data.url.matches('^https://(www\\.|m\\.)?(youtube\\.com|youtu\\.be)/.*') &&
+             data.type in ['Video', 'Playlist'] &&
+             data.category in ['Video editing', 'Coding', 'AI', 'Agentic AI', 'Automation', 'Other skills'] &&
+             data.level in ['Beginner', 'Intermediate', 'Advanced', 'All levels'] &&
+             data.language is string && data.language.size() >= 1 && data.language.size() <= 60 &&
+             data.status in ['scored', 'unscored'] &&
+             data.reasonIfUnscored is string && data.reasonIfUnscored.size() <= 400 &&
+             isValidScore(data.clarity) &&
+             isValidScore(data.depth) &&
+             isValidScore(data.beginner) &&
+             isValidScore(data.freshness) &&
+             isValidScore(data.score) &&
+             data.summary is string && data.summary.size() <= 400 &&
+             data.basis is string && data.basis.size() <= 500 &&
+             data.confidence in ['High', 'Limited'] &&
+             data.videoId is string && data.videoId.size() <= 40 &&
+             data.playlistId is string && data.playlistId.size() <= 80 &&
+             data.thumb is string && data.thumb.size() <= 500 &&
+             data.durationMin is int && data.durationMin >= 0 && data.durationMin <= 200000 &&
+             data.lessonCount is int && data.lessonCount >= 0 && data.lessonCount <= 5000 &&
+             data.bookmarked is bool &&
+             data.scoredAt is timestamp && data.scoredAt <= request.time &&
+             data.addedAt is timestamp && data.addedAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidLesson(data, userId, courseId) {
+      return data.userId is string && data.userId == userId &&
+             data.courseId is string && data.courseId == courseId &&
+             data.order is int && data.order >= 0 && data.order <= 5000 &&
+             data.videoId is string && data.videoId.size() >= 1 && data.videoId.size() <= 40 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
+             data.durationMin is int && data.durationMin >= 0 && data.durationMin <= 20000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidQuota(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.dateKey is string && data.dateKey.size() == 10 &&
+             data.dateKey.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$') &&
+             data.count is int && data.count >= 0 && data.count <= 20 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/courses/{courseId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && isValidId(courseId);
+
+      allow create: if isOwner(userId) &&
+                       isValidId(courseId) &&
+                       incoming().keys().hasAll([
+                         'userId', 'title', 'channel', 'url', 'type', 'category',
+                         'level', 'language', 'status', 'reasonIfUnscored',
+                         'clarity', 'depth', 'beginner', 'freshness', 'score',
+                         'summary', 'basis', 'confidence', 'videoId', 'playlistId',
+                         'thumb', 'durationMin', 'lessonCount', 'bookmarked',
+                         'scoredAt', 'addedAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'title', 'channel', 'url', 'type', 'category',
+                         'level', 'language', 'status', 'reasonIfUnscored',
+                         'clarity', 'depth', 'beginner', 'freshness', 'score',
+                         'summary', 'basis', 'confidence', 'videoId', 'playlistId',
+                         'thumb', 'durationMin', 'lessonCount', 'bookmarked',
+                         'scoredAt', 'addedAt', 'updatedAt'
+                       ]) &&
+                       isValidCourse(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(courseId) &&
+                       isValidCourse(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().addedAt == existing().addedAt && (
+                         incoming().diff(existing()).affectedKeys().hasOnly(['bookmarked', 'updatedAt']) ||
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'channel', 'url', 'type', 'category',
+                           'level', 'language', 'status', 'reasonIfUnscored',
+                           'clarity', 'depth', 'beginner', 'freshness', 'score',
+                           'summary', 'basis', 'confidence', 'videoId', 'playlistId',
+                           'thumb', 'durationMin', 'lessonCount', 'scoredAt', 'updatedAt'
+                         ])
+                       );
+
+      allow delete: if isOwner(userId) && isValidId(courseId);
+
+      match /lessons/{lessonId} {
+        allow list: if isOwner(userId) && isValidId(courseId);
+        allow get: if isOwner(userId) && isValidId(courseId) && isValidId(lessonId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(courseId) &&
+                         isValidId(lessonId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'courseId', 'order', 'videoId', 'title', 'durationMin', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'courseId', 'order', 'videoId', 'title', 'durationMin', 'createdAt'
+                         ]) &&
+                         isValidLesson(incoming(), userId, courseId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/courses/$(courseId));
+
+        allow update: if isOwner(userId) &&
+                         isValidId(courseId) &&
+                         isValidId(lessonId) &&
+                         isValidLesson(incoming(), userId, courseId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().courseId == existing().courseId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'order', 'videoId', 'title', 'durationMin'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(courseId) && isValidId(lessonId);
+      }
+    }
+
+    match /users/{userId}/quota/{quotaId} {
+      allow list: if isOwner(userId);
+      allow get: if isOwner(userId) && quotaId == 'daily';
+
+      allow create: if isOwner(userId) &&
+                       quotaId == 'daily' &&
+                       incoming().keys().hasAll(['userId', 'dateKey', 'count', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'dateKey', 'count', 'updatedAt']) &&
+                       isValidQuota(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       quotaId == 'daily' &&
+                       isValidQuota(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['dateKey', 'count', 'updatedAt']);
+
+      allow delete: if false;
+    }
+  }
+}

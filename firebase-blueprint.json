@@ -1,0 +1,251 @@
+{
+  "entities": {
+    "Course": {
+      "title": "Course",
+      "description": "An evaluated or unscored YouTube video or playlist course owned by a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the owner."
+        },
+        "title": {
+          "type": "string",
+          "description": "Course or video title from YouTube metadata."
+        },
+        "channel": {
+          "type": "string",
+          "description": "YouTube channel name."
+        },
+        "url": {
+          "type": "string",
+          "description": "Validated https YouTube or youtu.be URL."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["Video", "Playlist"],
+          "description": "Whether the source is a single video or a playlist."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Video editing", "Coding", "AI", "Agentic AI", "Automation", "Other skills"],
+          "description": "SkillRank course category."
+        },
+        "level": {
+          "type": "string",
+          "enum": ["Beginner", "Intermediate", "Advanced", "All levels"],
+          "description": "Target skill level inferred from real evidence."
+        },
+        "language": {
+          "type": "string",
+          "description": "Course spoken or caption language."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["scored", "unscored"],
+          "description": "Whether sufficient real evidence existed to score the course."
+        },
+        "reasonIfUnscored": {
+          "type": "string",
+          "description": "Honest explanation when status is unscored."
+        },
+        "clarity": {
+          "type": "number",
+          "description": "Clarity sub-score from 0 to 10."
+        },
+        "depth": {
+          "type": "number",
+          "description": "Depth sub-score from 0 to 10."
+        },
+        "beginner": {
+          "type": "number",
+          "description": "Beginner fit sub-score from 0 to 10."
+        },
+        "freshness": {
+          "type": "number",
+          "description": "Freshness sub-score from 0 to 10."
+        },
+        "score": {
+          "type": "number",
+          "description": "Weighted final score recomputed deterministically in Kotlin."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Concise evidence-based summary (max 25 words)."
+        },
+        "basis": {
+          "type": "string",
+          "description": "Exact evidence sources used to compute the score."
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["High", "Limited"],
+          "description": "Confidence level based on available evidence."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "Normalized YouTube video ID if applicable."
+        },
+        "playlistId": {
+          "type": "string",
+          "description": "Normalized YouTube playlist ID if applicable."
+        },
+        "thumb": {
+          "type": "string",
+          "description": "Thumbnail URL from i.ytimg.com."
+        },
+        "durationMin": {
+          "type": "integer",
+          "description": "Total duration in minutes."
+        },
+        "lessonCount": {
+          "type": "integer",
+          "description": "Number of lessons in playlist or 1 for single video."
+        },
+        "bookmarked": {
+          "type": "boolean",
+          "description": "Whether the course is bookmarked in the user's Library."
+        },
+        "scoredAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last evaluation (FieldValue.serverTimestamp())."
+        },
+        "addedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when first added (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last modification (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "channel",
+        "url",
+        "type",
+        "category",
+        "level",
+        "language",
+        "status",
+        "reasonIfUnscored",
+        "clarity",
+        "depth",
+        "beginner",
+        "freshness",
+        "score",
+        "summary",
+        "basis",
+        "confidence",
+        "videoId",
+        "playlistId",
+        "thumb",
+        "durationMin",
+        "lessonCount",
+        "bookmarked",
+        "scoredAt",
+        "addedAt",
+        "updatedAt"
+      ]
+    },
+    "CourseLesson": {
+      "title": "CourseLesson",
+      "description": "Individual lesson item inside a YouTube playlist course.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Parent course document ID."
+        },
+        "order": {
+          "type": "integer",
+          "description": "Zero-based lesson index in playlist."
+        },
+        "videoId": {
+          "type": "string",
+          "description": "YouTube video ID for this lesson."
+        },
+        "title": {
+          "type": "string",
+          "description": "Lesson title from playlistItems."
+        },
+        "durationMin": {
+          "type": "integer",
+          "description": "Lesson duration in minutes."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when lesson was stored (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "courseId",
+        "order",
+        "videoId",
+        "title",
+        "durationMin",
+        "createdAt"
+      ]
+    },
+    "DailyQuota": {
+      "title": "DailyQuota",
+      "description": "Per-user daily evaluation counter enforcing a 20 courses/day limit.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "dateKey": {
+          "type": "string",
+          "description": "UTC date key in YYYY-MM-DD format."
+        },
+        "count": {
+          "type": "integer",
+          "description": "Evaluations performed on dateKey (0..20)."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last quota update."
+        }
+      },
+      "required": [
+        "userId",
+        "dateKey",
+        "count",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/courses/{courseId}": {
+      "schema": {
+        "$ref": "#/entities/Course"
+      },
+      "description": "Evaluated YouTube courses belonging to a specific user."
+    },
+    "/users/{userId}/courses/{courseId}/lessons/{lessonId}": {
+      "schema": {
+        "$ref": "#/entities/CourseLesson"
+      },
+      "description": "Ordered lessons belonging to a playlist course."
+    },
+    "/users/{userId}/quota/{quotaId}": {
+      "schema": {
+        "$ref": "#/entities/DailyQuota"
+      },
+      "description": "Daily course evaluation rate-limit tracker for the user."
+    }
+  }
+}
