@@ -23,42 +23,38 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
-import com.example.data.firebase.signOutUser
+import com.example.data.firebase.AuthManager
 import com.example.data.preferences.AppPreferences
 import com.example.data.preferences.ThemePreference
 import com.example.data.repository.CourseRepository
 import com.example.model.DailyQuota
 import com.example.ui.theme.IbmPlexMonoFontFamily
 import com.example.ui.theme.LocalSkillRankColors
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
+    authManager: AuthManager,
     preferences: AppPreferences,
     dailyQuota: DailyQuota,
     hasYouTubeApiKey: Boolean,
+    userDisplayName: String?,
+    userEmail: String?,
     onThemeChange: (ThemePreference) -> Unit,
     onReduceMotionChange: (Boolean) -> Unit,
     onSignedOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val credentialManager = remember(context) { CredentialManager.create(context) }
     val semantic = LocalSkillRankColors.current
-    val user = Firebase.auth.currentUser
 
     Column(
         modifier = modifier
@@ -247,13 +243,13 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = user?.displayName ?: "Signed-in learner",
+                        text = userDisplayName?.takeIf { it.isNotBlank() } ?: "Signed-in learner",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (!user?.email.isNullOrBlank()) {
+                    if (!userEmail.isNullOrBlank()) {
                         Text(
-                            text = user?.email.orEmpty(),
+                            text = userEmail,
                             fontFamily = IbmPlexMonoFontFamily,
                             fontWeight = FontWeight.Normal,
                             fontSize = 12.sp,
@@ -262,11 +258,10 @@ fun SettingsScreen(
                     }
                     OutlinedButton(
                         onClick = {
-                            signOutUser(
-                                credentialManager = credentialManager,
-                                scope = scope,
-                                onSignOutComplete = onSignedOut
-                            )
+                            scope.launch {
+                                authManager.signOut()
+                                onSignedOut()
+                            }
                         },
                         shape = RoundedCornerShape(12.dp),
                         border = BorderStroke(1.dp, semantic.hairline),

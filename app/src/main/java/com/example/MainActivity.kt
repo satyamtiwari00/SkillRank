@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
@@ -52,7 +53,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.data.ai.CourseEvaluatorAi
-import com.example.data.firebase.authStateFlow
+import com.example.data.firebase.AuthManager
 import com.example.data.firebase.configureAppCheck
 import com.example.data.preferences.AppPreferences
 import com.example.data.preferences.PreferencesRepository
@@ -67,8 +68,6 @@ import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LibraryScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.theme.SkillRankTheme
-import com.google.firebase.Firebase
-import com.google.firebase.auth.auth
 import com.google.firebase.firestore.FirebaseFirestore
 
 private const val ROUTE_HOME = "home"
@@ -151,16 +150,24 @@ private fun SkillRankRoot(
     pendingLaunchTarget: LaunchTarget?,
     onConsumeLaunchTarget: () -> Unit
 ) {
-    val auth = Firebase.auth
-    val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
+    val context = LocalContext.current
+    val authManager = remember(context) { AuthManager(context.applicationContext) }
+    val currentUser by authManager.observeAuthState()
+        .collectAsStateWithLifecycle(initialValue = authManager.currentUser)
 
     val user = currentUser
     if (user == null) {
-        AuthScreen(onAuthSuccess = {})
+        AuthScreen(
+            authManager = authManager,
+            onAuthSuccess = {}
+        )
     } else {
         key(user.uid) {
             MainAuthenticatedApp(
+                authManager = authManager,
                 currentUserId = user.uid,
+                userDisplayName = user.displayName,
+                userEmail = user.email,
                 pendingLaunchTarget = pendingLaunchTarget,
                 onConsumeLaunchTarget = onConsumeLaunchTarget
             )
@@ -184,7 +191,10 @@ private val TOP_TABS = listOf(
 
 @Composable
 private fun MainAuthenticatedApp(
+    authManager: AuthManager,
     currentUserId: String,
+    userDisplayName: String?,
+    userEmail: String?,
     pendingLaunchTarget: LaunchTarget?,
     onConsumeLaunchTarget: () -> Unit
 ) {
@@ -393,9 +403,12 @@ private fun MainAuthenticatedApp(
 
                         composable(ROUTE_SETTINGS) {
                             SettingsScreen(
+                                authManager = authManager,
                                 preferences = prefs,
                                 dailyQuota = dailyQuota,
                                 hasYouTubeApiKey = viewModel.hasYouTubeApiKey,
+                                userDisplayName = userDisplayName,
+                                userEmail = userEmail,
                                 onThemeChange = viewModel::setThemePreference,
                                 onReduceMotionChange = viewModel::setReduceMotion,
                                 onSignedOut = {}

@@ -38,32 +38,28 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
-import com.example.data.firebase.attemptAutoSignIn
-import com.example.data.firebase.onGoogleSignInClicked
+import com.example.data.firebase.AuthManager
+import com.example.data.firebase.AuthResult
 import com.example.ui.theme.IbmPlexMonoFontFamily
 import com.example.ui.theme.LocalSkillRankColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun AuthScreen(
+    authManager: AuthManager,
     onAuthSuccess: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val credentialManager = remember(context) { CredentialManager.create(context) }
     val semantic = LocalSkillRankColors.current
 
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        attemptAutoSignIn(
-            context = context,
-            credentialManager = credentialManager,
-            onAuthSuccess = onAuthSuccess,
-            onUnauthenticated = { },
-            scope = scope
-        )
+    LaunchedEffect(authManager) {
+        if (authManager.attemptAutoSignIn(context) is AuthResult.Success) {
+            onAuthSuccess()
+        }
     }
 
     Box(
@@ -148,24 +144,23 @@ fun AuthScreen(
 
             Button(
                 onClick = {
-                    isLoading = true
-                    errorMessage = null
-                    onGoogleSignInClicked(
-                        context = context,
-                        credentialManager = credentialManager,
-                        onAuthSuccess = {
-                            isLoading = false
-                            onAuthSuccess()
-                        },
-                        onAuthError = { msg ->
-                            isLoading = false
-                            errorMessage = msg
-                        },
-                        scope = scope,
-                        onAuthCancelled = {
-                            isLoading = false
+                    scope.launch {
+                        isLoading = true
+                        errorMessage = null
+                        when (val result = authManager.signInWithGoogle(context)) {
+                            is AuthResult.Success -> {
+                                isLoading = false
+                                onAuthSuccess()
+                            }
+                            AuthResult.Cancelled, AuthResult.Unauthenticated -> {
+                                isLoading = false
+                            }
+                            is AuthResult.Error -> {
+                                isLoading = false
+                                errorMessage = result.message
+                            }
                         }
-                    )
+                    }
                 },
                 enabled = !isLoading,
                 modifier = Modifier
